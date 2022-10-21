@@ -13,6 +13,9 @@ pub enum ContractError {
     #[error("Already on Sale")]
     AlreadyOnSale {},
 
+    #[error("Unacceptable Price")]
+    UnacceptablePrice {},
+
     #[error("CannotCancelSale")]
     CannotCancelSale {},
 
