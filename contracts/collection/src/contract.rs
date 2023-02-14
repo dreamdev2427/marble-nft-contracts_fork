@@ -120,7 +120,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, crate::Co
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetConfig {} => to_binary(&query_config(deps).unwrap()),
+        QueryMsg::GetConfig {} => to_binary(&query_config(deps)?),
         QueryMsg::GetSale {token_id} => to_binary(&query_get_sale(deps, token_id)?),
         QueryMsg::GetSales {start_after, limit} => to_binary(&query_get_sales(deps, start_after, limit)?),
     }
@@ -412,12 +412,6 @@ pub fn execute_accept_sale(
     let list = sale_info.requests.clone();
     let len = sale_info.requests.len();
     let sell_request = list.get(len - 1).unwrap();
-
-     // Check unacceptable state
-    if sell_request.price < sale_info.reserve_price {
-        return Err(crate::ContractError:: UnacceptablePrice{});
-    }
-
     //Add NFT send msg
     let mut msgs = sell_nft_messages(deps.storage, deps.api, sell_request.address.clone(), sell_request.price.clone(), sale_info.clone())?;
 
@@ -426,7 +420,7 @@ pub fn execute_accept_sale(
         let request = list.get(i).unwrap();
         msgs.push(util::transfer_token_message(sale_info.denom.clone(), request.price, request.address.clone())?);
     }
-
+    
     SALE.remove(deps.storage, token_id.to_string());
 
     Ok(Response::new()
@@ -577,7 +571,14 @@ pub fn handle_propose(
             return Err(crate::ContractError::LowerThanPrevious {})
         }
     }
-
+    // let mut lastitem = Request {
+    //     address: address.clone(),
+    //     price: Uint128::zero()
+    // };
+    // if list.len() > 0 {
+    //     let len = list.len();
+    //     lastitem = list[len - 1].clone();
+    // }
     list.push(Request {
         address: address.clone(),
         price
@@ -608,11 +609,9 @@ pub fn handle_propose(
 
     } else {
         let mut msgs:Vec<CosmosMsg> = vec![];
-        if list.len() > 1 {
-            let mut lastitem = list[list.len() - 1].clone();
-            let mut return_fund_msgs = util::transfer_token_message(sale_info.denom.clone(), lastitem.price, lastitem.address.clone())?;
-            msgs.push(return_fund_msgs);
-        }
+        // if list.len() > 1 {
+        //     msgs.push(util::transfer_token_message(sale_info.denom.clone(), lastitem.price, lastitem.address.clone())?);
+        // }
         
         Ok(Response::new()
             .add_messages(msgs)
